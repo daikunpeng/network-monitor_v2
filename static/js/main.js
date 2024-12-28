@@ -1,6 +1,19 @@
 const socket = io();
 const maxDataPoints = 50;
 
+// 添加连接状态监听
+socket.on('connect', () => {
+    console.log('Connected to server');
+});
+
+socket.on('disconnect', () => {
+    console.log('Disconnected from server');
+});
+
+socket.on('error', (error) => {
+    console.error('Socket error:', error);
+});
+
 // 初始化图表
 const charts = {
     latency: createChart('latencyChart', '网络延迟 (ms)'),
@@ -10,7 +23,13 @@ const charts = {
 };
 
 function createChart(canvasId, label) {
-    return new Chart(document.getElementById(canvasId), {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) {
+        console.error(`Canvas element not found: ${canvasId}`);
+        return null;
+    }
+
+    return new Chart(ctx, {
         type: 'line',
         data: {
             labels: [],
@@ -36,6 +55,11 @@ function createChart(canvasId, label) {
 
 // 更新图表数据
 function updateChart(chart, value, timestamp) {
+    if (!chart) {
+        console.error('Chart is null');
+        return;
+    }
+
     const data = chart.data.datasets[0].data;
     const labels = chart.data.labels;
     
@@ -64,16 +88,22 @@ function calculateThroughput(stats) {
 
 // Socket.io事件处理
 socket.on('network_stats', (stats) => {
-    updateChart(charts.latency, stats.delay, stats.timestamp);
-    updateChart(charts.wifi, stats.wifi_quality, stats.timestamp);
-    updateChart(charts.throughput, calculateThroughput(stats), stats.timestamp);
-    updateChart(charts.packetLoss, calculatePacketLoss(stats), stats.timestamp);
+    console.log('Received network stats:', stats);
+    try {
+        updateChart(charts.latency, stats.delay, stats.timestamp);
+        updateChart(charts.wifi, stats.wifi_quality, stats.timestamp);
+        updateChart(charts.throughput, calculateThroughput(stats), stats.timestamp);
+        updateChart(charts.packetLoss, calculatePacketLoss(stats), stats.timestamp);
+    } catch (error) {
+        console.error('Error updating charts:', error);
+    }
 });
 
 // UI事件处理
 document.getElementById('start-btn').addEventListener('click', () => {
     const targetIp = document.getElementById('target-ip').value;
     if (targetIp) {
+        console.log('Starting monitoring for IP:', targetIp);
         socket.emit('start_monitoring', { target_ip: targetIp });
         document.getElementById('start-btn').disabled = true;
         document.getElementById('stop-btn').disabled = false;
@@ -82,6 +112,7 @@ document.getElementById('start-btn').addEventListener('click', () => {
 });
 
 document.getElementById('stop-btn').addEventListener('click', () => {
+    console.log('Stopping monitoring');
     socket.emit('stop_monitoring');
     document.getElementById('start-btn').disabled = false;
     document.getElementById('stop-btn').disabled = true;
