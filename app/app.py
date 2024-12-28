@@ -88,4 +88,4 @@ def handle_stop_monitoring():
     monitoring_active = False
 
 if __name__ == '__main__':
-    socketio.run(app, host='localhost', port=8080, debug=True) 
+    socketio.run(app, host='0.0.0.0', port=8080, debug=True) 
