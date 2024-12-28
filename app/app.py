@@ -29,6 +29,9 @@ target_ip = None
 iperf3_server = None
 monitoring_active = False
 monitor_thread = None
+last_bytes_sent = 0
+last_bytes_recv = 0
+last_time = None
 
 def ping_host(host):
     """使用系统ping命令"""
@@ -53,6 +56,31 @@ def ping_host(host):
         print(f"Ping error: {e}")
         return None
 
+def run_iperf3_test(target_ip):
+    """运行iperf3测试获取吞吐量"""
+    try:
+        client = iperf3.Client()
+        client.duration = 1  # 测试时长1秒
+        client.server_hostname = target_ip
+        client.port = 5201  # iperf3默认端口
+        client.protocol = 'tcp'
+        
+        print(f"Starting iperf3 test to {target_ip}")  # 调试信息
+        result = client.run()
+        
+        if result.error:
+            print(f"Iperf3 error: {result.error}")  # 调试信息
+            return 0
+            
+        # 转换为MB/s (result.sent_bytes是以字节为单位的)
+        throughput = result.sent_bytes / (1024 * 1024)  # MB/s
+        print(f"Iperf3 throughput: {throughput} MB/s")  # 调试信息
+        return throughput
+        
+    except Exception as e:
+        print(f"Error running iperf3 test: {e}")  # 调试信息
+        return 0
+
 def get_network_stats():
     """获取网络统计信息"""
     if not target_ip:
@@ -60,7 +88,9 @@ def get_network_stats():
         return None
     
     try:
-        # 使用系统ping命令替代ping3
+        current_time = time.time()
+        
+        # 使用系统ping命令
         delay = ping_host(target_ip)
         print(f"Ping result for {target_ip}: {delay}ms")  # 调试信息
         
@@ -77,15 +107,17 @@ def get_network_stats():
             except Exception as e:
                 print(f"Error getting WiFi quality: {e}")  # 调试信息
         
-        # 获取网络接口统计
+        # 使用iperf3获取吞吐量
+        throughput = run_iperf3_test(target_ip)
+        
+        # 获取网络接口统计（用于丢包率计算）
         net_stats = psutil.net_io_counters()
         
         stats = {
-            'timestamp': time.time(),
-            'delay': delay if delay is not None else 0,  # 确保delay有值
-            'wifi_quality': wifi_quality if wifi_quality is not None else 0,  # 确保wifi_quality有值
-            'bytes_sent': net_stats.bytes_sent,
-            'bytes_recv': net_stats.bytes_recv,
+            'timestamp': current_time,
+            'delay': delay if delay is not None else 0,
+            'wifi_quality': wifi_quality if wifi_quality is not None else 0,
+            'throughput': throughput,
             'packets_sent': net_stats.packets_sent,
             'packets_recv': net_stats.packets_recv,
             'errin': net_stats.errin,

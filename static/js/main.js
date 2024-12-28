@@ -92,7 +92,7 @@ socket.on('network_stats', (stats) => {
     try {
         updateChart(charts.latency, stats.delay, stats.timestamp);
         updateChart(charts.wifi, stats.wifi_quality, stats.timestamp);
-        updateChart(charts.throughput, calculateThroughput(stats), stats.timestamp);
+        updateChart(charts.throughput, stats.throughput, stats.timestamp);
         updateChart(charts.packetLoss, calculatePacketLoss(stats), stats.timestamp);
     } catch (error) {
         console.error('Error updating charts:', error);
